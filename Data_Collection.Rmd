@@ -1,0 +1,437 @@
+---
+title: "Data Collection"
+author: "The Mean_Squares"
+date: "15/10/2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+### Elaboré par : The Mean_Squares
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+Dans cette partie, nous allons collecter les données à l'aide du $Web Scraping$ en utilisant la bibliothèque R $"vrest"$ via les sites:  
+• www.seatguru.com  
+• www.airfleets.net
+
+## Scraping via Sea Guru
+### Seat Guru met à notre disposition 6 tableaux décrivant les classes des avions des compagnies dans le monde, en l'occurence:  
+• Short-haul Economy Class
+• Short-haul First/Business Class
+• Long-haul Economy Class
+• Premium Economy Class
+• Long-haul Business Class
+• Long-haul First Class
+
+### Nous allons combiner ces 6 tableaux en un seul dataset contenant les avions des compagnies étiquetés par long et court trajet et contenant ces 23 variables:  
+• Airline  
+• Aircraft  
+• Seat.Pitch.(Economy)  
+• Seat.Width.(Economy)
+• Seat.Pitch.(Premium Economy)  
+• Seat.Width.(Premium Economy)  
+• Seat.Pitch.(First/Business Class)  
+• Seat.Width.(First/Business Class)  
+• Seat.Pitch.(VIP)  
+• Seat.Width.(VIP)  
+• Wifi  
+• Video  
+• Power  
+• Sleeper  
+• Video.Type    
+• Laptop.Power   
+• Power.Type   
+• Seat.Type  
+• Haul  
+
+### Scraping des avions court courrier:
+```{r}
+library('xml2')
+library('rvest')
+
+
+url <- 'https://www.seatguru.com/charts/shorthaul_economy.php'
+webpage <- read_html(url)
+table <- html_table(webpage, fill = TRUE)
+data<-data.frame(table[[1]])
+
+names(data) <- c("Airline", "Aircraft","Seat.Pitch.(Economy)","Seat.Width.(Economy)","Video.Type","Laptop.Power","Power.Type", "Wifi","Seat.Type")
+
+data$`Seat.Pitch.(Premium.Economy)`<-0
+data$`Seat.Width.(Premium.Economy)`<-0
+
+data$`Seat.Pitch.(First/Business)`<-0
+data$`Seat.Width.(First/Business)`<-0
+
+data$`Seat.Pitch.(VIP)`<-0
+data$`Seat.Width.(VIP)`<-0
+
+data$Haul<-""
+
+data<-data[,c(1,2,3,4,10,11,12,13,14,15,5,6,7,8,9,16)]
+
+url <- 'https://www.seatguru.com/charts/shorthaul_first_class.php'
+webpage <- read_html(url)
+table <- html_table(webpage, fill = TRUE)
+tmp<-data.frame(table[[1]])
+
+n=nrow(data)
+n1=nrow(tmp)
+for (j in 1:n1)
+{
+  x=0
+  for (i in 1:n) 
+    {
+      if ((data[i,1]==tmp[j,1]) & (data[i,2]==tmp[j,2]))
+        { 
+          data[i,7]=tmp[j,3]
+          data[i,8]=tmp[j,4]
+          x<-x+1
+        }
+  }
+  if (x==0)
+  {
+    rbind(data,c(tmp[j,1],tmp[j,2],0,0,0,0,tmp[j,3],tmp[j,4],0,0,tmp[j,5],tmp[j,6],tmp[j,7],tmp[j,8],tmp[j,9],"Short"))
+  }
+  
+}
+
+data$Haul<-"Short"
+data<-data[order(data$Airline),] 
+
+```
+### Scraping des avions court courrier:  
+```{r}
+url <- 'https://www.seatguru.com/charts/longhaul_economy.php'
+webpage <- read_html(url)
+table <- html_table(webpage, fill = TRUE)
+tmp<-data.frame(table[[1]])
+
+n=nrow(data)
+n1=nrow(tmp)
+remove(i)
+remove(j)
+for (j in 1:n1)
+{
+  x=0
+  
+  for (i in 1:n)
+  {
+    
+    if ((data[i,1]==tmp[j,1]) & (data[i,2]==tmp[j,2]))
+    { 
+      data[i,3]=tmp[j,3]
+      data[i,4]=tmp[j,4]
+      
+      x=x+1
+    }
+  }
+  
+  if(x==0)
+    data[nrow(data)+1,]=list(tmp[j,1],tmp[j,2],tmp[j,3],tmp[j,4],0,0,0,0,0,0,tmp[j,5],tmp[j,6],tmp[j,7],tmp[j,8],tmp[j,9],"Long")
+   
+    
+}
+
+
+data<-data[order(data$Airline),] 
+
+
+url <- 'https://www.seatguru.com/charts/premium_economy.php'
+webpage <- read_html(url)
+table <- html_table(webpage, fill = TRUE)
+tmp<-data.frame(table[[1]])
+
+n=nrow(data)
+n1=nrow(tmp)
+remove(i)
+remove(j)
+for (j in 1:n1)
+{
+  x=0
+  
+  
+  for (i in 1:n)
+  {
+    
+    if ((data[i,1]==tmp[j,1]) & (data[i,2]==tmp[j,2]))
+    { 
+      data[i,5]=tmp[j,3]
+      data[i,6]=tmp[j,4]
+      x=x+1
+    }
+  }
+  
+  if(x==0)
+    data[nrow(data)+1,]=list(tmp[j,1],tmp[j,2],0,0,tmp[j,3],tmp[j,4],0,0,0,0,tmp[j,5],tmp[j,6],tmp[j,7],tmp[j,8],tmp[j,9],"Long")
+  
+  
+}
+
+
+data<-data[order(data$Airline),] 
+
+
+url <- 'https://www.seatguru.com/charts/longhaul_business_class.php'
+webpage <- read_html(url)
+table <- html_table(webpage, fill = TRUE)
+tmp<-data.frame(table[[1]])
+
+n=nrow(data)
+n1=nrow(tmp)
+remove(i)
+remove(j)
+for (j in 1:n1)
+{
+  x=0
+  
+  
+  for (i in 1:n)
+  {
+    
+    if ((data[i,1]==tmp[j,1]) & (data[i,2]==tmp[j,2]))
+    { 
+      data[i,7]=tmp[j,3]
+      data[i,8]=tmp[j,4]
+      x=x+1
+    }
+  }
+  
+  if(x==0)
+    data[nrow(data)+1,]=list(tmp[j,1],tmp[j,2],0,0,0,0,tmp[j,3],tmp[j,4],0,0,tmp[j,5],tmp[j,6],tmp[j,7],tmp[j,8],tmp[j,9],"Long")
+  
+  
+}
+
+
+data<-data[order(data$Airline),] 
+
+url <- 'https://www.seatguru.com/charts/longhaul_first_class.php'
+webpage <- read_html(url)
+table <- html_table(webpage, fill = TRUE)
+tmp<-data.frame(table[[1]])
+
+n=nrow(data)
+n1=nrow(tmp)
+remove(i)
+remove(j)
+for (j in 1:n1)
+{
+  x=0
+  
+  for (i in 1:n)
+  {
+    
+    if ((data[i,1]==tmp[j,1]) & (data[i,2]==tmp[j,2]))
+    { 
+      data[i,9]=tmp[j,3]
+      data[i,10]=tmp[j,4]
+      x=x+1
+    }
+  }
+  
+  if(x==0)
+    data[nrow(data)+1,]=list(tmp[j,1],tmp[j,2],0,0,0,0,0,0,tmp[j,3],tmp[j,4],tmp[j,5],tmp[j,6],tmp[j,7],tmp[j,8],tmp[j,9],"Long")
+  
+  
+}
+```
+
+### Resultat:  
+```{r}
+knitr::kable(data[1:10,], caption = "Les 10 premières lignes.", floating.environment="sidewaystable")
+```
+...  
+```{r}
+knitr::kable(data[1369:1379,], caption = "Les 10 dernières lignes.", floating.environment="sidewaystable")
+```
+
+### Data preparation:
+Nous allons maintenant regarder les types de nos variables:
+```{r}
+data2<-data
+str(data2)
+```
+Transformation des variables catégoriques de chr à Factor:
+```{r}
+data2$Video.Type<-as.factor(data2$Video.Type)
+data2$Laptop.Power<-as.factor(data2$Laptop.Power)
+data2$Power.Type<-as.factor(data2$Power.Type)
+data2$Seat.Type<-as.factor(data2$Seat.Type)
+data2$Haul<-as.factor(data2$Haul)
+```
+
+Nous remarquons que les variables Seat.Width et Seat.Pitch peuvent contenir des "-" pour exprimer une plage entre deux valeurs, dans notre cas, ces valeurs sont très proches alors nous allons remplacer ces plages là par leurs moyenne arithmetique:  
+```{r}
+library(stringr)
+for(i in 3:10)
+{
+  for (j in 1:nrow(data2))
+    {
+        if (str_detect(data2[j,i],"-"))
+        {
+          k<-str_locate(data2[j,i], "-")
+          data2[j,i]<- as.character((as.double(substr(data2[j,i],1,k-1))+as.double(substr(data2[j,i],k+1,k+6)))/2)
+        }
+        
+    }
+}
+
+data2$`Seat.Pitch.(Economy)`<-as.double(data2$`Seat.Pitch.(Economy)`)
+data2$`Seat.Width.(Economy)`<-as.double(data2$`Seat.Width.(Economy)`)
+
+data2$`Seat.Pitch.(Premium.Economy)`<-as.double(data2$`Seat.Pitch.(Premium.Economy)`)
+data2$`Seat.Width.(Premium.Economy)`<-as.double(data2$`Seat.Width.(Premium.Economy)`)
+
+data2$`Seat.Pitch.(First/Business)`<-as.double(data2$`Seat.Pitch.(First/Business)`)
+data2$`Seat.Width.(First/Business)`<-as.double(data2$`Seat.Width.(First/Business)`)
+
+data2$`Seat.Pitch.(VIP)`<-as.double(data2$`Seat.Pitch.(VIP)`)
+data2$`Seat.Width.(VIP)`<-as.double(data2$`Seat.Width.(VIP)`)
+```
+
+Interpretation des variables catégoriques:  
+```{r}
+data2[which(data2$Wifi=="No"),14]<-"0"
+data2[which(data2$Wifi=="Yes"),14]<-"1"
+data2$Wifi<-as.numeric(data2$Wifi)
+
+data2$Video<-1
+data2[which(data2$Video.Type=="None"),17]<-0
+
+data2$Power<-1
+data2[which(data2$Power.Type=="None"),18]<-0
+
+data2$Sleeper<-1
+data2[which(data2$Seat.Type=="Standard"),19]<-0
+```
+
+Resultat: 
+```{r}
+str(data2)
+```
+
+
+## Scraping via Air Fleets
+AirFleets.net met à notre disposition des informations qui concernent les flottes de plusieurs compagnies aériennes, à savoir la composition, l'âge, l'historique ...
+L'idée est d'introduire le nom de la compagnie aérienne dans l'url sur lequel nous allons effectuer le scraping.
+Le dataframe que nous voulons créer, contiendra 5 variables :  
+• Nom de la compagnie aérienne
+• Nombres des appreils court-courrier
+• Nombre des appareils long-courrier
+• Nombre total des appareils
+• Moyenne d'âge de la flotte actuelle
+
+Pour ce faire, on charge un dataset téléchargé de Kaggle : 
+```{r}
+df = read.csv(file = "df.csv",header = T,sep = ",",dec = ".",stringsAsFactors = F)
+head(df,5)
+#We only have interest in the current fleet, so we delete the unused columns
+df = df[which(!is.na(df$Current)),-c(6,7,8,9,10,11,12)]
+df$Parent.Airline = NULL
+```
+
+```{r}
+df1 = data.frame("Airline","Short_Haul","Long_Haul","Total","Average_Age")
+names(df1) = c("Airline","Short_Haul","Long_Haul","Total","Average_Age")
+df1 = df1[0,] #Delete the first row of the dataframe
+df1$Airline = as.character(df1$Airline)
+df1$Short_Haul = as.integer(df1$Short_Haul)
+df1$Long_Haul = as.integer(df1$Long_Haul)
+df1$Average_Age = as.numeric(df1$Average_Age)
+df1$Total = as.integer(df1$Total)
+str(df1)
+for(i in 1:nrow(df)){
+  df1[i,] = c(df[i,1],0,0,0,0)
+}
+library("dplyr")
+df1 = distinct(df1)
+df1
+str(df)
+str(df1)
+#We count the number of short haul and long haul aircrafts for every type
+for(i in 1:nrow(df1)){
+  for(j in 1:nrow(df)){
+    if(tolower(sub(" ","",df[j,1])) == tolower(sub(" ","",df1[i,1])) & df[j,3] == "Short"){
+      df1[i,2] = df1[i,2] + df[j,4]
+    }
+    if(tolower(sub(" ","",df[j,1])) == tolower(sub(" ","",df1[i,1])) & df[j,3] == "Long"){
+      df1[i,3] = df1[i,3] + df[j,4]
+    }
+  }
+}
+df1$Total = df1$Short_Haul + df1$Long_Haul
+df1
+```
+
+Notre but est de scraper l'âge de chaque flotte aérienne : 
+```{r}
+library("httr")
+#Loop through the rows of the dataframe
+for(i in 1:nrow(df1)){
+  #insert the name of the airline in the url using paste function
+  #url <- paste("https://www.airfleets.net/ageflotte/",paste(df1[i,1],".htm",sep = ""),sep = "")
+  #Airfleets.net requires a valid user-agent (else our requests will be detected as DDoS)
+  #url = GET(url, add_headers('user-agent' = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'))
+  #webpage <- read_html(url)
+  #scrap the content of the markup with .texte class
+  #rank_data_html <- html_nodes(webpage,'.texte')
+  #rank_data <- html_text(rank_data_html)
+  #if the webpage exists 
+  #if(length(rank_data) > 0){
+    #Get only the numeric part of the scraped data
+    #rank_data = substring(rank_data,15)
+    #rank_data = substring(rank_data,1,nchar(rank_data)-9)
+    #insert the scraped average age in the appropriate cell
+    #df1[i,5] = as.numeric(rank_data)
+  #}
+}
+```
+
+On obtient alort le dataset suivant : 
+```{r}
+final_scraping = read.csv(file = "fleets_lab.csv",header = T,sep = ",",dec = ".",stringsAsFactors = F)
+final_scraping = final_scraping[which(final_scraping$Average_Age != 0),]
+final_scraping$X = NULL
+```
+
+## Ajout de nombre des destination : 
+Nous avons télécharger deux dataset :
+1) routes.csv : contient les vols programmés par compagnie (code de la compagnie et départ et destination de chaque vol)
+2) codes.csv : contient les codes et les noms des compagnies aériennes.
+```{r}
+codes = read.csv("airlines.csv",header = T,sep = ",",stringsAsFactors = F)
+codes = codes[which(codes$IATA != "" & codes$IATA != "-"),] #Delete invalid rows
+codes$Name = tolower(sub(""," ",codes$Name)) #Lower names for comparaison purposes
+codes$Name= trimws(codes$Name) #Delete left and right spaces
+routes = read.csv("routes.csv",header = T,sep = ",",dec = ".",stringsAsFactors = F)
+```
+
+On ajoute la colonne IATA qui contiendera le code au dataframe principal : 
+```{r}
+final_scraping$IATA = NA
+final_scraping$dest = 0 #initialize the numbers of routes to 0 for every airline
+final_scraping$IATA = as.character(final_scraping$IATA)
+final_scraping
+codes
+for(i in 1:nrow(final_scraping)){
+  for(j in 1:nrow(codes)){
+    if(tolower(sub(" ","",final_scraping[i,1])) == codes[j,2]){
+      final_scraping[i,5] = codes[j,4]
+      break()
+    }
+  }
+}
+final_scraping = final_scraping[which(!is.na(final_scraping$IATA)),]
+final_scraping$Total = final_scraping$Long_Haul + final_scraping$Short_Haul
+final_scraping$Short_Haul = NULL
+final_scraping$Long_Haul = NULL
+final_scraping
+for(i in 1:nrow(final_scraping)){
+  final_scraping[i,4] = nrow(routes[which(routes$airline == final_scraping[i,3]),])
+}
+final_scraping
+```
+

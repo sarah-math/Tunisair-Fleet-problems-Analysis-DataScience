@@ -1,0 +1,390 @@
+---
+title: "Etude sur la flotte de TunisAir"
+author: "The Mean_Squares"
+date: "15/10/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Plan de travail: (CRISP)  
+## I - Compréhension métier  
+### 1)  Problématique  
+### 2)  Démarche à suivre  
+## II - Compréhension des données   
+### 1)  Collecte des données  
+### 2)  Exploration des données  
+## III - Préparation des données  
+## IV - Modélisation   
+## V - Interprétation      
+
+
+## I - Compréhension métier  
+### 1)  Problématique  
+- Est-ce que la flotte actuelle de Tunisair répond aux exigences internationales ?  
+- Peut-on affirmer que les modèles disponibles dans la compagnie tunisienne joignent les normes standards favorisant la concurrence sur l’échelle régionale et/ou internationale ?  
+- Comment peut-on catégoriser une telle panoplie de modèles d’avions ?  
+- Quel est le profil typique des avions dans le monde ?  
+
+### 2)  Démarche à suivre  
+- Dans ce projet, nous allons répondre à la problématique moyennant la méthode CRISP et suivant cette stratégie:  
+Nous allons étudier la flotte de Tunisair selon deux principaux critères: 
+1)  Les caractéristiques de la flotte de Tunsair et ceux des compagnies aériennes dans le monde. 
+
+2)  Les équipements des avions de la flotte de Tunisair et des compagnies aériennes dans le monde.  
+
+## II - Compréhension des données  
+
+### 1)  Collecte des données    
+
+- Voir le rapport *Data_Collection.html*  
+
+### 2)  Exploration des données  
+Nous disposons de deux datasets collectés précédemment:  
+- *Fleet.csv*  
+- *Fleet_Equipments.csv*    
+
+Commençons par *Fleet.csv* !
+
+- Importation du dataset:
+```{r}
+fleet<- read.csv(file = "Fleet.csv", header = T ,sep=",",dec = ".")
+fleet$X<- NULL
+```
+
+- Ce dataset comporte 110 observations et 8 variables détaillés ci-dessous:
+```{r}
+str(fleet)
+```
+
+```{r}
+sum(is.na(fleet))
+```
+- Ce dataset ne comporte aucune valeur manquante.
+
+- Vue génerale du dataset:
+
+```{r}
+summary(fleet)
+```
+
+Passons à *Fleet_Equipments.csv* !
+
+- Importation du dataset:
+```{r}
+fleetEq<- read.csv(file = "Fleet_Equipments.csv", header = T ,sep=",",dec = ".")
+fleetEq$X<- NULL
+```
+
+- Ce dataset comporte 1397 observations et 19 variables détaillés ci-dessous:
+```{r}
+str(fleetEq)
+```
+
+```{r}
+sum(is.na(fleetEq))
+```
+- Ce dataset ne comporte aucune valeur manquante.
+
+- Vue génerale du dataset:
+
+```{r}
+summary(fleetEq)
+```
+## III - Préparation des données
+Les données sont déjà prêts, cette étape a été accomplie dans le rapport *Data_Collection.html*
+
+## IV - Modélisation
+- Statistique descriptive du dataset *fleet*:
+Nous allons comparer Tunisair aux compagnies aériennes sur le plan international à travers plusieurs facteurs:
+
+1) Moyenne d'âge :
+```{r}
+barplot(fleet$Average_Age,col=ifelse(fleet$Airline == "Tunisair","blue","gray"))
+abline(h = median(fleet$Average_Age),col = "red")
+```
+
+2) Nombre d'avions:
+
+```{r}
+barplot(fleet$Total,col=ifelse(fleet$Airline == "Tunisair","blue","gray"))
+abline(h = median(fleet$Total),col = "red")
+```
+
+- Segmentation des flottes aériennes présents dans le dataset *fleet*: 
+
+On determine le nombre de clusters adéquoit avec la méthode *Somme des carrés pondérés*:
+
+
+```{r}
+fleet2<-fleet
+fleet2$Short_Haul = NULL
+fleet2$Long_Haul = NULL
+fleet2$IATA = NULL
+wss <- (nrow(fleet2[,-c(1,6)])-1)*sum(apply(fleet2[,-c(1,6)],2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(fleet2[,-c(1,6)],
+                                    centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+    ylab="Within groups sum of squares")
+```
+
+On choisit 4 comme nombre de clusters:
+
+```{r}
+set.seed(4455)
+fleet2$cluster = kmeans(fleet2[,-c(1,6)],4)$cluster
+```
+
+On determine le cluster qui contient tunisair et les compagnies similaires de point de vue taille des flottes,moyennes d'ages et nombre des vols programmés 
+
+```{r}
+fleet2[which(fleet2$Airline=="Tunisair"),-1]
+tunisair_cluster = fleet2[which(fleet2$cluster == 1),]
+tunisair_cluster$cluster = NULL
+cor(tunisair_cluster[,-c(1,6)])
+tunisair_cluster$Average_Age = NULL
+tunisair_cluster$Airline = NULL
+tunisair_cluster$dest = as.integer(tunisair_cluster$dest)
+write.csv(tunisair_cluster,"tunisaircluster.csv")
+```
+
+On effectue une régression linaire simple afin de prédire le nombre de vols supposés assurés par Tunisair
+
+```{python,engine.path="/anaconda3/bin/python"}
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Importer le dataset
+dataset = pd.read_csv("tunisaircluster.csv")
+X = dataset.iloc[:, 1].values
+y = dataset.iloc[:, -1].values
+
+# Diviser le dataset entre le Training set et le Test set
+from sklearn.cross_validation import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 0)
+
+# Construction du modèle
+from sklearn.linear_model import LinearRegression
+regressor = LinearRegression()
+regressor.fit(X_train.reshape(-1,1), y_train)
+
+# Faire de nouvelles prédictions
+y_pred = regressor.predict(30)
+print(y_pred)
+
+```
+
+- Interpretation:
+On constate que tunisair est supposée effectuer 117 vols alors qu'elle en effectue 157.
+On peut donc en conclure que Tunisair surexploite sa flotte aérienne.
+
+
+- Etude comparative de la flotte de tunisair par rapport aux flottes des compagnies aériennes concurrentes:
+
+```{python,engine.path="/anaconda3/bin/python"}
+import numpy as np
+import matplotlib.pyplot as plt
+
+import pandas as pd
+import seaborn as sns; sns.set()
+#import plotly
+
+dataset= pd.read_csv("final_dataset.csv",delimiter=",")
+
+dataset.columns
+dataset.describe()
+tunisia=dataset.loc[dataset['Airline']=='Tunisair']
+egypt=dataset.loc[dataset['Airline']=='EgyptAir']
+maroc=dataset.loc[dataset['Airline']=='Royal Air Maroc']
+african=pd.DataFrame()
+african=tunisia
+african=african.append(egypt)
+african=african.append(maroc)
+colors = ['yellowgreen', 'lightcoral', 'lightskyblue']
+explode = (0.1, 0, 0)  # explode 1st slice
+fig = plt.figure(figsize=(16,8))
+ss=[tunisia['Short_Haul'].values,egypt['Short_Haul'].values,maroc['Short_Haul'].values]
+Label= "Short Tunisair","Short egypt air","Short Royal Air Maroc"
+ss
+colors = ['yellowgreen', 'lightcoral', 'lightskyblue']
+explode = (0.1, 0, 0)  # explode 1st slice
+# we can see that Royal Air maroc have the better number of fleet comparing to tunnisia and africa
+# comaparaison between maroc tunisia and south africa
+# Plot
+plt.pie(ss, explode=explode, labels=Label, colors=colors,
+       autopct='%1.1f%%', shadow=True, startangle=140)
+fig.savefig("pyplot.png")
+plt.close(fig)
+```
+
+
+```{r, echo=FALSE}
+knitr::include_graphics("pyplot.png")
+```
+
+
+
+
+
+```{python,engine.path="/anaconda3/bin/python"}
+import numpy as np
+import matplotlib.pyplot as plt
+
+import pandas as pd
+import seaborn as sns; sns.set()
+#import plotly
+colors = ['yellowgreen', 'lightcoral', 'lightskyblue']
+fig = plt.figure(figsize=(16,8))
+
+dataset= pd.read_csv("final_dataset.csv",delimiter=",")
+explode = (0.1, 0, 0)  # explode 1st slice
+
+tunisia=dataset.loc[dataset['Airline']=='Tunisair']
+egypt=dataset.loc[dataset['Airline']=='EgyptAir']
+maroc=dataset.loc[dataset['Airline']=='Royal Air Maroc']
+sss=[tunisia['Long_Haul'].values,egypt['Long_Haul'].values,maroc['Long_Haul'].values]
+Label1= "Long Tunisair","Long Egypt air","Long Air Maroc"
+plt.pie(sss, explode=explode, labels=Label1, colors=colors,
+       autopct='%1.1f%%', shadow=True, startangle=140)
+fig.savefig("pyplot1.png")
+```
+
+```{r, echo=FALSE}
+knitr::include_graphics("pyplot1.png")
+```
+
+
+On constate que Tunisair a pourcentrage très mediocre par rapport à Long egypt air et Long Air Maroc et donc on peut conclure que Tunisair ne peut pas concurrencer les autres flottes dans les vols long courriers.
+
+- Segmentation des flottes aériennes présents dans le dataset *fleetEquipements*:
+
+- Ajout d'une nouvelle colonne (Origine) pour vérifier si la flotte de Tunisair est incluse dans le Cluster majoritaire des flottes étrangeres ou pas.
+```{r}
+fleetEq$origine <- ifelse(fleetEq$Airline =="Tunis Air","Tunisair", "Etrangere")
+```
+
+
+
+- CAH CLUSTING
+```{r}
+quantiData111<-fleetEq[3:14]
+distData111<-dist(quantiData111)
+Data111_HH<-hclust(distData111, method="average")
+```
+
+
+- Dendrogramme
+```{r}
+plot(Data111_HH)
+```
+
+
+- On voit clairement qu'il y'a 3 Clusters principaux
+```{r}
+Data111_CH<-cutree(Data111_HH , 3 )
+```
+
+- Vérifions si la Flotte de Tunisair fait partie du Cluster le plus imposant (incluant la majorité des Flottes )
+```{r}
+table(fleetEq$origine, Data111_CH  )
+```
+
+```{r}
+fleetEq$cluster = Data111_CH
+```
+
+```{r}
+table(fleetEq$Haul,fleetEq$cluster) 
+```
+
+- Les modèles d'avions des Cluster 2 et 3 sont tous de long courrier
+
+
+```{r}
+nrow(fleetEq[which(fleetEq$`Seat.Pitch..VIP.` == 0 & fleetEq$cluster != 1),])
+nrow(fleetEq[which(fleetEq$`Seat.Pitch..VIP.` == 0 & fleetEq$cluster == 1),])
+```
+- Les Modeles d'Avions du Cluster 1 be dispose d'aucune classe VIP (c'est donc le cas pour les avions de Tunisair), tandis que ceux des Cluster 2 et 3 disposent tous de classe VIP
+
+-Qu'en est t'il des spécifications des Cluster 2 et 3 
+
+-On a Comparé la disposition de Class Business (Par rapport au Seat Pitch First Business)
+
+
+```{r}
+nrow(fleetEq[which(fleetEq$`Seat.Pitch..First.Business.` == 0 & fleetEq$cluster == 2),])
+nrow(fleetEq[which(fleetEq$`Seat.Pitch..First.Business.` == 0 & fleetEq$cluster == 3),])
+nrow(fleetEq[which(fleetEq$`Seat.Pitch..First.Business.` == 0 & fleetEq$Airline == "Tunisair"),])
+```
+
+- Tous les modèles d'avions du Cluster 2 disposent de Classe First Business, tandis qu'aucune du Cluster 3 n'en disposent, 3 modèles /5 de Tunisair ont la classe Business
+
+- Plotting LUXURY
+```{r}
+plot ( fleetEq$`Seat.Pitch..VIP.` , col=ifelse(fleetEq$Airline == "Tunis Air","yellow",Data111_CH) , pch=19 , cex=ifelse(fleetEq$Airline == "Tunis Air",3,1.5))
+plot ( fleetEq$`Seat.Pitch..First.Business.` , col=ifelse(fleetEq$Airline == "Tunis Air","yellow",Data111_CH) , pch=19 , cex=ifelse(fleetEq$Airline == "Tunis Air",3,1.5))
+```
+
+
+- On peut Clairement Affirmer que la Classe First Business a répartit les 2 Clusters 2 et 3 qui se joignent dans la disponibilité de Classe VIP par rapoort au Cluster 1, mais il n'entre pas dans les facteurs Globaux qui caractérisent Chaque Cluster étant donné qu'une Bonne majorité du Cluster 1 ont la Classe Business.
+
+- Ce qui nous amene a conclure que le Facteur Majeur qui a répartit les Clusters est "Luxe et Confort",Le Cluster 2: "Luxieux" avec 114 modeles, Cluster 3: "Moyennement Luxieux" avec 14 modeles, Cluster 1: "Pas assez Luxieux" avec 1246 modeles, et Tunisair fait Partie du Cluster le moins Luxieux.
+
+- Clustering au Sein du 1er Cluster (qui inclut Tunisair) pour identifier les Airlines les Plus similaires
+
+- CAH CLUSTING1
+
+```{r}
+Data112<-fleetEq[which(fleetEq$cluster==1),]
+
+quantiData112<-Data112[,3:14]
+distData112<-dist(quantiData112)
+Data112_HH<-hclust(distData112, method="average")
+``` 
+
+- Dendrogramme au sein du Cluster 1 
+```{r}
+plot(Data112_HH)
+``` 
+
+- On peut distinguer 12 Clusters principaux (à l'interieur du Cluster 1)
+```{r}
+Data112_CH<-cutree(Data112_HH , 12 )
+``` 
+
+- Vérifions si la Flotte de Tunisair fait partie du Cluster le plus imposant (incluant la majorité des Flottes )
+```{r}
+table(Data112$origine, Data112_CH  )
+``` 
+
+
+- On va comparer les caracteristiques des modèles de Flotte Tunisair par rapports aux autres modèles dans les Clusters ou ils sont inclus et les autres Clusters, pour identifier le modèle meilleur que Tunisair mais qui s'y approche (on ignore les Clusrters de 7 à 12 vu que leur effectif n'est pas grand)
+```{r}
+Cluster1<-Data112[which(Data112$cluster == 1),]
+Cluster2<-Data112[which(Data112$cluster == 2),]
+Cluster3<-Data112[which(Data112$cluster == 3),]
+Cluster4<-Data112[which(Data112$cluster == 4),]
+Cluster5<-Data112[which(Data112$cluster == 5),]
+Cluster6<-Data112[which(Data112$cluster == 6),]
+``` 
+
+
+## V - Interprétation  
+Tunisair est caractérisée par une panoplie d'avions comme suit:
+
+- Moyenne d'age de la flotte élevée.  
+- Nombre de vols plus important que la normale (Surexploitation de la flotte).  
+- Nombre d'avions en dessous de la norme.
+- La flotte ne contient pas d'avions luxieux.
+
+# Conclusion
+
+Pour remédier aux problèmes cités ci-dessus, il est imperatif que Tunisair renforce sa flotte aérienne afin de baisser la charge imposée sur la flotte actuelle, notemment des avions capables d'executer des longs courrier afin de pouvoir faire face à la concurrence.  
+
+Dans cette optique, Tunisair à déjà commandé 5 avions de type A320-NEO.
+
+
+
